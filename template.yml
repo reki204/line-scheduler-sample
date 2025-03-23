@@ -1,0 +1,493 @@
+Parameters:
+  SsmParameterValuesamplechannelaccesstokenC96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: sample-channel-access-token
+  SsmParameterValuesamplechannelsecretC96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: sample-channel-secret
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Resources:
+  SchedulerRole59E73443:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+        Version: "2012-10-17"
+      Description: Role for EventBridge Scheduler to invoke Lambda
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/SchedulerRole/Resource
+  SchedulerRoleDefaultPolicy66F774B8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - sampleReminderHandler8D401A3F
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: SchedulerRoleDefaultPolicy66F774B8
+      Roles:
+        - Ref: SchedulerRole59E73443
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/SchedulerRole/DefaultPolicy/Resource
+  ApiHandlerLambdaRoleE4BBBCD8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Description: API Handler Lambda execution role
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/ApiHandlerLambdaRole/Resource
+  ApiHandlerLambdaRoleDefaultPolicyCA9DF4C5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: scheduler:CreateSchedule
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:scheduler:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :schedule/default/sample-reminder-*
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SchedulerRole59E73443
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ApiHandlerLambdaRoleDefaultPolicyCA9DF4C5
+      Roles:
+        - Ref: ApiHandlerLambdaRoleE4BBBCD8
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/ApiHandlerLambdaRole/DefaultPolicy/Resource
+  sampleReminderHandlerServiceRole622A4A6F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/sampleReminderHandler/ServiceRole/Resource
+  sampleReminderHandler8D401A3F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: dc93375a8ef29f8219215ee6d74dd7ec780d681c50b74487562c5f091e359cc5.zip
+      Environment:
+        Variables:
+          CHANNEL_ACCESS_TOKEN:
+            Ref: SsmParameterValuesamplechannelaccesstokenC96584B6F00A464EAD1953AFF4B05118Parameter
+          ENV: production
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - sampleReminderHandlerServiceRole622A4A6F
+          - Arn
+      Runtime: nodejs20.x
+      Timeout: 30
+    DependsOn:
+      - sampleReminderHandlerServiceRole622A4A6F
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/sampleReminderHandler/Resource
+      aws:asset:path: C:\git\line-scheduler-sample\cdk.out\asset.dc93375a8ef29f8219215ee6d74dd7ec780d681c50b74487562c5f091e359cc5
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  sampleReminderHandlerAllowSchedulerInvoke278D1B40:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sampleReminderHandler8D401A3F
+          - Arn
+      Principal: scheduler.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:scheduler:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - :schedule/*
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/sampleReminderHandler/AllowSchedulerInvoke
+  sampleApiHandler84AFAF78:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 5b4ab5aaa996730c1e4d7631b796a8e5339d366190a6468d6d88e141cb50efe5.zip
+      Environment:
+        Variables:
+          CHANNEL_ACCESS_TOKEN:
+            Ref: SsmParameterValuesamplechannelaccesstokenC96584B6F00A464EAD1953AFF4B05118Parameter
+          CHANNEL_SECRET:
+            Ref: SsmParameterValuesamplechannelsecretC96584B6F00A464EAD1953AFF4B05118Parameter
+          ENV: production
+          REMINDER_HANDLER_ARN:
+            Fn::GetAtt:
+              - sampleReminderHandler8D401A3F
+              - Arn
+          SCHEDULER_ROLE_ARN:
+            Fn::GetAtt:
+              - SchedulerRole59E73443
+              - Arn
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - ApiHandlerLambdaRoleE4BBBCD8
+          - Arn
+      Runtime: nodejs20.x
+      Timeout: 30
+    DependsOn:
+      - ApiHandlerLambdaRoleDefaultPolicyCA9DF4C5
+      - ApiHandlerLambdaRoleE4BBBCD8
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/sampleApiHandler/Resource
+      aws:asset:path: C:\git\line-scheduler-sample\cdk.out\asset.5b4ab5aaa996730c1e4d7631b796a8e5339d366190a6468d6d88e141cb50efe5
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  LineSchedulerSampleAEA06F00:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: LineSchedulerSample
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/Resource
+  LineSchedulerSampleDeploymentDAFF9C5Fa69fd4d8d9b731d4e32a2360a1097235:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      Description: Automatically created by the RestApi construct
+      RestApiId:
+        Ref: LineSchedulerSampleAEA06F00
+    DependsOn:
+      - LineSchedulerSampleproxyANYDE4EFDB9
+      - LineSchedulerSampleproxyFAEE42AD
+      - LineSchedulerSampleANY92395793
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/Deployment/Resource
+  LineSchedulerSampleDeploymentStageprod6EC4C0F0:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId:
+        Ref: LineSchedulerSampleDeploymentDAFF9C5Fa69fd4d8d9b731d4e32a2360a1097235
+      RestApiId:
+        Ref: LineSchedulerSampleAEA06F00
+      StageName: prod
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/DeploymentStage.prod/Resource
+  LineSchedulerSampleproxyFAEE42AD:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - LineSchedulerSampleAEA06F00
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: LineSchedulerSampleAEA06F00
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/Default/{proxy+}/Resource
+  LineSchedulerSampleproxyANYApiPermissionLineSchedulerSampleStackLineSchedulerSampleA5AAC97DANYproxy6E17E112:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sampleApiHandler84AFAF78
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LineSchedulerSampleAEA06F00
+            - /
+            - Ref: LineSchedulerSampleDeploymentStageprod6EC4C0F0
+            - /*/*
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/Default/{proxy+}/ANY/ApiPermission.LineSchedulerSampleStackLineSchedulerSampleA5AAC97D.ANY..{proxy+}
+  LineSchedulerSampleproxyANYApiPermissionTestLineSchedulerSampleStackLineSchedulerSampleA5AAC97DANYproxyC04BCC52:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sampleApiHandler84AFAF78
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LineSchedulerSampleAEA06F00
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/Default/{proxy+}/ANY/ApiPermission.Test.LineSchedulerSampleStackLineSchedulerSampleA5AAC97D.ANY..{proxy+}
+  LineSchedulerSampleproxyANYDE4EFDB9:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: ANY
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - sampleApiHandler84AFAF78
+                  - Arn
+              - /invocations
+      ResourceId:
+        Ref: LineSchedulerSampleproxyFAEE42AD
+      RestApiId:
+        Ref: LineSchedulerSampleAEA06F00
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/Default/{proxy+}/ANY/Resource
+  LineSchedulerSampleANYApiPermissionLineSchedulerSampleStackLineSchedulerSampleA5AAC97DANYA543FED3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sampleApiHandler84AFAF78
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LineSchedulerSampleAEA06F00
+            - /
+            - Ref: LineSchedulerSampleDeploymentStageprod6EC4C0F0
+            - /*/
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/Default/ANY/ApiPermission.LineSchedulerSampleStackLineSchedulerSampleA5AAC97D.ANY..
+  LineSchedulerSampleANYApiPermissionTestLineSchedulerSampleStackLineSchedulerSampleA5AAC97DANY49484F02:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sampleApiHandler84AFAF78
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LineSchedulerSampleAEA06F00
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/Default/ANY/ApiPermission.Test.LineSchedulerSampleStackLineSchedulerSampleA5AAC97D.ANY..
+  LineSchedulerSampleANY92395793:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: ANY
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - sampleApiHandler84AFAF78
+                  - Arn
+              - /invocations
+      ResourceId:
+        Fn::GetAtt:
+          - LineSchedulerSampleAEA06F00
+          - RootResourceId
+      RestApiId:
+        Ref: LineSchedulerSampleAEA06F00
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/LineSchedulerSample/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/+VUTY/aMBD9LetjZVx2t4eKG2xVCWnbRbC3KEKz9hAMiR3ZztLIyn+v7CRASj92+3GqBLL8xn5+b2YyN+z6/ZiNr+BgR1zsR7l8Yn7lgO/p3UYtwECBDg1dotWV4ZiQN4R2/5TCwa69hIL5pc4x8QSsrQoUs5pMPCmNVFyWkE8515VyZBIvtmfChSl3UqsIN5QItNzI8gzyBIR41IueZ6FzyWsySXyTxqhzwLdzlUuFx1gQ9uvgz3n/excFKMhQREqJNpAOsHpqurNpk4ZOCRS0DcUW6ZU/6hC5MHQJC7Fy4LBA5eyZh+/B/5g/+mmtNDSH4knAWmmBO8s+x+VjpWKyEk9QOVN3udyCEjmabmcq5WSB3Q7VszRahWc6JAR11e+4Fti3S/v7S9SvYTIxZb+p9/XCX/xck1J7uwZr0Vk2DQu1t2xW8T26GVhM0q5MzN9tVF+dWEU0hbRWatVQKGUGDg9QM38fjy/RumkpE08EbqDK3Vw5zAwcP4Sh/uBtsG8bvyWhH7DMdR0cRL7hEKAEStnbRgdSnY7b4Zi415nkkM/FoElfjkdRJ3a6cpBhlNRDZ+Jj8DjbYy7jXF8Y/aU+jnxPSjCn0vwwWV3gE7qtFg/R/cncGUWnvT3Xf6N9MuOTtI0lnpgO6evhXNnfi4C8UKG/efgPGaKu9kLT0Nh9IWtSZSHwULmycg0N84Ht7NvnmzG7fsfGVzsr5ajrd7Zs1689k0fsbAcAAA==
+    Metadata:
+      aws:cdk:path: LineSchedulerSampleStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  LineSchedulerSampleEndpoint86C7EFB5:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: LineSchedulerSampleAEA06F00
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: LineSchedulerSampleDeploymentStageprod6EC4C0F0
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-3
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-4
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+      - Fn::Equals:
+          - Ref: AWS::Region
+          - us-west-2
+
